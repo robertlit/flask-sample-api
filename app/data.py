@@ -42,9 +42,10 @@ class MemoryDataStore(DataStore):
     In-memory data storage.
     This implementation uses three dicts for constant lookup time with all three parameters.
     """
-    __by_application_id: dict[int, list[Message]] = defaultdict(list)
-    __by_session_id: dict[str, list[Message]] = defaultdict(list)
-    __by_message_id: dict[str, Message] = dict()
+    def __init__(self):
+        self.__by_application_id: dict[int, list[Message]] = defaultdict(list)
+        self.__by_session_id: dict[str, list[Message]] = defaultdict(list)
+        self.__by_message_id: dict[str, Message] = dict()
 
     def add_message(self, message: Message) -> None:
         self.__by_application_id[message.application_id].append(message)
