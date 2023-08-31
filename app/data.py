@@ -42,6 +42,7 @@ class MemoryDataStore(DataStore):
     In-memory data storage.
     This implementation uses three dicts for constant lookup time with all three parameters.
     """
+
     def __init__(self):
         self.__by_application_id: dict[int, list[Message]] = defaultdict(list)
         self.__by_session_id: dict[str, list[Message]] = defaultdict(list)
@@ -91,13 +92,11 @@ class MemoryDataStore(DataStore):
         return 0
 
 
-def get_connection():
-    return sqlite3.connect("database.db")
-
-
 class DiskDataStore(DataStore):
     """SQLite data storage."""
-    def __init__(self):
+
+    def __init__(self, db_file_name="database.db"):
+        self.db_file_name = db_file_name
         create_table_query = """
             CREATE TABLE IF NOT EXISTS messages (
                 application_id INTEGER,
@@ -107,17 +106,20 @@ class DiskDataStore(DataStore):
                 content TEXT
             );
         """
-        con = get_connection()
+        con = self.get_connection()
         con.execute(create_table_query)
         con.commit()
         con.close()
+
+    def get_connection(self):
+        return sqlite3.connect(self.db_file_name)
 
     def add_message(self, message: Message) -> None:
         insert_query = """
             INSERT INTO messages 
             VALUES (?, ?, ?, ?, ?);
         """
-        con = get_connection()
+        con = self.get_connection()
         ser_participants = json.dumps(message.participants)
         con.execute(insert_query, (
             message.application_id,
@@ -135,7 +137,7 @@ class DiskDataStore(DataStore):
             WHERE application_id = ?;
         """
         result = []
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
         cur.execute(select_query, (application_id,))
         for row in cur:
@@ -152,7 +154,7 @@ class DiskDataStore(DataStore):
             WHERE session_id = ?;
         """
         result = []
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
         cur.execute(select_query, (session_id,))
         for row in cur:
@@ -168,7 +170,7 @@ class DiskDataStore(DataStore):
             SELECT * FROM messages
             WHERE message_id = ?;
         """
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
         cur.execute(select_query, (message_id,))
 
@@ -187,7 +189,7 @@ class DiskDataStore(DataStore):
             DELETE FROM messages
             WHERE application_id = ?;
         """
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
 
         cur.execute(delete_query, (application_id,))
@@ -200,7 +202,7 @@ class DiskDataStore(DataStore):
             DELETE FROM messages
             WHERE session_id = ?;
         """
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
 
         cur.execute(delete_query, (session_id,))
@@ -213,7 +215,7 @@ class DiskDataStore(DataStore):
             DELETE FROM messages
             WHERE message_id = ?;
         """
-        con = get_connection()
+        con = self.get_connection()
         cur = con.cursor()
 
         cur.execute(delete_query, (message_id,))
