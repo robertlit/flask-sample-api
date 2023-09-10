@@ -46,7 +46,7 @@ def add_message():
 
     message = Message(**data)
     if data_store.get_message_by_message_id(message.message_id):
-        abort(400, f"Message with message_id={message.message_id} already exists")
+        abort(400, f"Message with {message.message_id=} already exists")
 
     data_store.add_message(message)
     return {
@@ -59,17 +59,7 @@ def get_message():
     if len(request.args.keys()) != 1:
         abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
 
-    messages = None
-    for arg_name, get_func in get_functions.items():
-        if arg_name in request.args:
-            arg_val = request.args.get(arg_name)
-            transformation, err_msg = arg_transformations[arg_name]
-            transformed_arg = transformation(arg_val)
-
-            if transformed_arg is None:
-                abort(400, err_msg)
-
-            messages = get_func(transformed_arg)
+    messages = call_func_by_arg(request.args, get_functions)
 
     if messages is None:
         abort(400, "Specify one of the following: applicationId, sessionId, messageId")
@@ -77,7 +67,6 @@ def get_message():
     if len(messages) == 0:
         abort(404, "No messages found")
 
-    # always return in the same format to avoid api inconsistency
     return {
         "messages": messages
     }
@@ -88,17 +77,7 @@ def delete_message():
     if len(request.args.keys()) != 1:
         abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
 
-    deleted_amount = None
-    for arg_name, delete_func in delete_functions.items():
-        if arg_name in request.args:
-            arg_val = request.args.get(arg_name)
-            transformation, err_msg = arg_transformations[arg_name]
-            transformed_arg = transformation(arg_val)
-
-            if transformed_arg is None:
-                abort(400, err_msg)
-
-            deleted_amount = delete_func(transformed_arg)
+    deleted_amount = call_func_by_arg(request.args, delete_functions)
 
     if deleted_amount is None:
         abort(400, "Specify one of the following: applicationId, sessionId, messageId")
@@ -109,6 +88,21 @@ def delete_message():
     return {
         "deleted_amount": deleted_amount
     }
+
+
+def call_func_by_arg(args, funcs):
+    for arg_name, func in funcs.items():
+        if arg_name in args:
+            arg_val = args.get(arg_name)
+            transformation, err_msg = arg_transformations[arg_name]
+            transformed_arg = transformation(arg_val)
+
+            if transformed_arg is None:
+                abort(400, err_msg)
+
+            return func(transformed_arg)
+
+    return None
 
 
 @app.errorhandler(HTTPException)
