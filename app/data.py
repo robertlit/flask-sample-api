@@ -137,13 +137,12 @@ class DiskDataStore(DataStore):
         """
         result = []
 
-        with self.con as con:
-            cur = con.cursor()
-            cur.execute(select_query, (application_id,))
-            for row in cur:
-                row = dict(row)
-                row["participants"] = json.loads(row["participants"])
-                result.append(Message(**row))
+        cur = self.con.cursor()
+        cur.execute(select_query, (application_id,))
+        for row in cur:
+            row = dict(row)
+            row["participants"] = json.loads(row["participants"])
+            result.append(Message(**row))
 
         return result
 
