@@ -98,7 +98,9 @@ class DiskDataStore(DataStore):
     """SQLite data storage."""
 
     def __init__(self, db_file_name="database.db"):
-        self.db_file_name = db_file_name
+        self.con = sqlite3.connect(db_file_name, check_same_thread=False)
+        self.con.row_factory = sqlite3.Row
+
         create_table_query = """
             CREATE TABLE IF NOT EXISTS messages (
                 application_id INTEGER,
@@ -108,63 +110,57 @@ class DiskDataStore(DataStore):
                 content TEXT
             );
         """
-        con = self.get_connection()
-        con.execute(create_table_query)
-        con.commit()
-        con.close()
+        with self.con as con:
+            con.execute(create_table_query)
 
-    def get_connection(self):
-        return sqlite3.connect(self.db_file_name)
+    def __del__(self):
+        self.con.close()
 
     def add_message(self, message: Message) -> None:
         insert_query = """
             INSERT INTO messages 
             VALUES (?, ?, ?, ?, ?);
         """
-        con = self.get_connection()
-        ser_participants = json.dumps(message.participants)
-        con.execute(insert_query, (
-            message.application_id,
-            message.session_id,
-            message.message_id,
-            ser_participants,
-            message.content
-        ))
-        con.commit()
-        con.close()
+        with self.con as con:
+            con.execute(insert_query, (
+                message.application_id,
+                message.session_id,
+                message.message_id,
+                json.dumps(message.participants),
+                message.content
+            ))
 
-    def get_messages_by_application_id(self, application_id: int) -> list[Message]:
+    def get_messages_by_application_id(self, application_id: int) -> List[Message]:
         select_query = """
             SELECT * FROM messages
             WHERE application_id = ?;
         """
         result = []
-        con = self.get_connection()
-        cur = con.cursor()
-        cur.execute(select_query, (application_id,))
-        for row in cur:
-            row = list(row)
-            row[3] = json.loads(row[3])
-            result.append(Message(*row))
 
-        con.close()
+        with self.con as con:
+            cur = con.cursor()
+            cur.execute(select_query, (application_id,))
+            for row in cur:
+                row = dict(row)
+                row["participants"] = json.loads(row["participants"])
+                result.append(Message(**row))
+
         return result
 
-    def get_messages_by_session_id(self, session_id: str) -> list[Message]:
+    def get_messages_by_session_id(self, session_id: str) -> List[Message]:
         select_query = """
             SELECT * FROM messages
             WHERE session_id = ?;
         """
         result = []
-        con = self.get_connection()
-        cur = con.cursor()
+
+        cur = self.con.cursor()
         cur.execute(select_query, (session_id,))
         for row in cur:
-            row = list(row)
-            row[3] = json.loads(row[3])
-            result.append(Message(*row))
+            row = dict(row)
+            row["participants"] = json.loads(row["participants"])
+            result.append(Message(**row))
 
-        con.close()
         return result
 
     def get_message_by_message_id(self, message_id: str) -> List[Message]:
@@ -172,33 +168,27 @@ class DiskDataStore(DataStore):
             SELECT * FROM messages
             WHERE message_id = ?;
         """
-        con = self.get_connection()
-        cur = con.cursor()
+        result = []
+
+        cur = self.con.cursor()
         cur.execute(select_query, (message_id,))
+        for row in cur:
+            row = dict(row)
+            row["participants"] = json.loads(row["participants"])
+            result.append(Message(**row))
 
-        row = cur.fetchone()
-        if row is None:
-            return []
-
-        row = list(row)
-        row[3] = json.loads(row[3])
-
-        con.close()
-
-        message = Message(*row)
-        return [message] if message else []
+        return result
 
     def delete_messages_by_application_id(self, application_id: int) -> int:
         delete_query = """
             DELETE FROM messages
             WHERE application_id = ?;
         """
-        con = self.get_connection()
-        cur = con.cursor()
 
-        cur.execute(delete_query, (application_id,))
-        con.commit()
-        con.close()
+        with self.con as con:
+            cur = con.cursor()
+            cur.execute(delete_query, (application_id,))
+
         return cur.rowcount
 
     def delete_messages_by_session_id(self, session_id: str) -> int:
@@ -206,12 +196,11 @@ class DiskDataStore(DataStore):
             DELETE FROM messages
             WHERE session_id = ?;
         """
-        con = self.get_connection()
-        cur = con.cursor()
 
-        cur.execute(delete_query, (session_id,))
-        con.commit()
-        con.close()
+        with self.con as con:
+            cur = con.cursor()
+            cur.execute(delete_query, (session_id,))
+
         return cur.rowcount
 
     def delete_message_by_message_id(self, message_id: str) -> int:
@@ -219,10 +208,9 @@ class DiskDataStore(DataStore):
             DELETE FROM messages
             WHERE message_id = ?;
         """
-        con = self.get_connection()
-        cur = con.cursor()
 
-        cur.execute(delete_query, (message_id,))
-        con.commit()
-        con.close()
+        with self.con as con:
+            cur = con.cursor()
+            cur.execute(delete_query, (message_id,))
+
         return cur.rowcount
