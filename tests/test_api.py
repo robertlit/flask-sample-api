@@ -24,13 +24,13 @@ def test_get_message_empty(client):
 
 
 def test_delete_message_empty(client):
-    response = client.get(delete_message_path, query_string={"applicationId": 1})
+    response = client.delete(delete_message_path, query_string={"applicationId": 1})
     assert response.status_code == 404
 
-    response = client.get(delete_message_path, query_string={"sessionId": "s1"})
+    response = client.delete(delete_message_path, query_string={"sessionId": "s1"})
     assert response.status_code == 404
 
-    response = client.get(delete_message_path, query_string={"messageId": "m1"})
+    response = client.delete(delete_message_path, query_string={"messageId": "m1"})
     assert response.status_code == 404
 
 
@@ -220,31 +220,31 @@ def test_get_message_by_message_id(client):
 
 def test_delete_message_invalid(client):
     # No query parameters
-    response = client.get(delete_message_path)
+    response = client.delete(delete_message_path)
     assert response.status_code == 400
 
     # Invalid query parameter
-    response = client.get(delete_message_path, query_string={"key": "val"})
+    response = client.delete(delete_message_path, query_string={"key": "val"})
     assert response.status_code == 400
 
     # application_id not int
-    response = client.get(delete_message_path, query_string={"applicationId": "str"})
+    response = client.delete(delete_message_path, query_string={"applicationId": "str"})
     assert response.status_code == 400
 
 
 def test_delete_message_by_application_id(client):
-    response = client.get(delete_message_path, query_string={"applicationId": 1})
+    response = client.delete(delete_message_path, query_string={"applicationId": 1})
     assert response.status_code == 200
     assert response.json["deleted_amount"] == 3
 
 
 def test_delete_message_by_session_id(client):
-    response = client.get(delete_message_path, query_string={"sessionId": "s2"})
+    response = client.delete(delete_message_path, query_string={"sessionId": "s2"})
     assert response.status_code == 200
     assert response.json["deleted_amount"] == 1
 
 
 def test_delete_message_by_message_id(client):
-    response = client.get(delete_message_path, query_string={"messageId": "m5"})
+    response = client.delete(delete_message_path, query_string={"messageId": "m5"})
     assert response.status_code == 200
     assert response.json["deleted_amount"] == 1

@@ -72,7 +72,7 @@ def get_message():
     }
 
 
-@app.route("/DeleteMessage", methods=["DELETE", "GET"])
+@app.delete("/DeleteMessage")
 def delete_message():
     if len(request.args.keys()) != 1:
         abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
@@ -94,11 +94,11 @@ def call_func_by_arg(args, funcs):
     for arg_name, func in funcs.items():
         if arg_name in args:
             arg_val = args.get(arg_name)
-            transformation, err_msg = arg_transformations[arg_name]
+            transformation, error_message = arg_transformations[arg_name]
             transformed_arg = transformation(arg_val)
 
             if transformed_arg is None:
-                abort(400, err_msg)
+                abort(400, error_message)
 
             return func(transformed_arg)
 
