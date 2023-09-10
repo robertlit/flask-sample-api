@@ -2,6 +2,7 @@ import json
 import sqlite3
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from typing import List
 
 from app.message import Message
 
@@ -13,15 +14,15 @@ class DataStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_messages_by_application_id(self, application_id: int) -> list[Message]:
+    def get_messages_by_application_id(self, application_id: int) -> List[Message]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_messages_by_session_id(self, session_id: str) -> list[Message]:
+    def get_messages_by_session_id(self, session_id: str) -> List[Message]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_message_by_message_id(self, message_id: str) -> Message | None:
+    def get_message_by_message_id(self, message_id: str) -> List[Message]:
         raise NotImplementedError
 
     @abstractmethod
@@ -53,14 +54,15 @@ class MemoryDataStore(DataStore):
         self.__by_session_id[message.session_id].append(message)
         self.__by_message_id[message.message_id] = message
 
-    def get_messages_by_application_id(self, application_id: int) -> list[Message]:
+    def get_messages_by_application_id(self, application_id: int) -> List[Message]:
         return self.__by_application_id[application_id]
 
-    def get_messages_by_session_id(self, session_id: str) -> list[Message]:
+    def get_messages_by_session_id(self, session_id: str) -> List[Message]:
         return self.__by_session_id[session_id]
 
-    def get_message_by_message_id(self, message_id: str) -> Message | None:
-        return self.__by_message_id.get(message_id)
+    def get_message_by_message_id(self, message_id: str) -> List[Message]:
+        message = self.__by_message_id.get(message_id)
+        return [message] if message else []
 
     def delete_messages_by_application_id(self, application_id: int) -> int:
         for message in self.__by_application_id[application_id]:
@@ -165,7 +167,7 @@ class DiskDataStore(DataStore):
         con.close()
         return result
 
-    def get_message_by_message_id(self, message_id: str) -> Message | None:
+    def get_message_by_message_id(self, message_id: str) -> List[Message]:
         select_query = """
             SELECT * FROM messages
             WHERE message_id = ?;
@@ -176,13 +178,15 @@ class DiskDataStore(DataStore):
 
         row = cur.fetchone()
         if row is None:
-            return None
+            return []
 
         row = list(row)
         row[3] = json.loads(row[3])
 
         con.close()
-        return Message(*row)
+
+        message = Message(*row)
+        return [message] if message else []
 
     def delete_messages_by_application_id(self, application_id: int) -> int:
         delete_query = """

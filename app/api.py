@@ -1,30 +1,38 @@
 import json
 from dataclasses import fields
+from typing import Callable, Dict, Tuple, Any, List
 
 from flask import Flask, request, abort
 from werkzeug.exceptions import HTTPException
 
 from app.data import DataStore, MemoryDataStore, DiskDataStore
 from app.message import Message
+from app.parsing import parse_int, identity
+from app.validation import validate_message_data
 
 app = Flask(__name__)
 
 # Leave one of the two uncommented, depending on which you want to use
-data_store: DataStore = MemoryDataStore()
-# data_store: DataStore = DiskDataStore()
+# data_store: DataStore = MemoryDataStore()
+data_store: DataStore = DiskDataStore()
 
-required_fields = [(field.name, field.type) for field in fields(Message)]
+arg_transformations: Dict[str, Tuple[Callable[[str], Any], str]] = {
+    "applicationId": (parse_int, "applicationId must be an integer"),
+    "sessionId": (identity, None),
+    "messageId": (identity, None)
+}
 
+get_functions: Dict[str, Callable[[Any], List[Message]]] = {
+    "applicationId": data_store.get_messages_by_application_id,
+    "sessionId": data_store.get_messages_by_session_id,
+    "messageId": data_store.get_message_by_message_id
+}
 
-def validate_message_data(data) -> (bool, str):
-    for field_name, field_type in required_fields:
-        if field_name not in data:
-            return False, f"Missing {field_name}"
-
-        if not isinstance(data[field_name], field_type):
-            return False, f"Invalid type for {field_name}: {field_type.__name__} expected"
-
-    return True, None
+delete_functions: Dict[str, Callable[[Any], int]] = {
+    "applicationId": data_store.delete_messages_by_application_id,
+    "sessionId": data_store.delete_messages_by_session_id,
+    "messageId": data_store.delete_message_by_message_id
+}
 
 
 @app.post("/AddMessage")
@@ -52,24 +60,19 @@ def get_message():
     if len(request.args.keys()) != 1:
         abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
 
-    if "applicationId" in request.args:
-        try:
-            application_id = int(request.args.get("applicationId"))
-        except ValueError:
-            abort(400, "applicationId must be an integer")
+    messages = None
+    for arg_name, get_func in get_functions.items():
+        if arg_name in request.args:
+            arg_val = request.args.get(arg_name)
+            transformation, err_msg = arg_transformations[arg_name]
+            transformed_arg = transformation(arg_val)
 
-        messages = data_store.get_messages_by_application_id(application_id)
+            if transformed_arg is None:
+                abort(400, err_msg)
 
-    elif "sessionId" in request.args:
-        session_id = request.args.get("sessionId")
-        messages = data_store.get_messages_by_session_id(session_id)
+            messages = get_func(transformed_arg)
 
-    elif "messageId" in request.args:
-        message_id = request.args.get("messageId")
-        message = data_store.get_message_by_message_id(message_id)
-        messages = [message] if message else []
-
-    else:
+    if messages is None:
         abort(400, "Specify one of the following: applicationId, sessionId, messageId")
 
     if len(messages) == 0:
@@ -86,23 +89,19 @@ def delete_message():
     if len(request.args.keys()) != 1:
         abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
 
-    if "applicationId" in request.args:
-        try:
-            application_id = int(request.args.get("applicationId"))
-        except ValueError:
-            abort(400, "applicationId must be an integer")
+    deleted_amount = None
+    for arg_name, delete_func in delete_functions.items():
+        if arg_name in request.args:
+            arg_val = request.args.get(arg_name)
+            transformation, err_msg = arg_transformations[arg_name]
+            transformed_arg = transformation(arg_val)
 
-        deleted_amount = data_store.delete_messages_by_application_id(application_id)
+            if transformed_arg is None:
+                abort(400, err_msg)
 
-    elif "sessionId" in request.args:
-        session_id = request.args.get("sessionId")
-        deleted_amount = data_store.delete_messages_by_session_id(session_id)
+            deleted_amount = delete_func(transformed_arg)
 
-    elif "messageId" in request.args:
-        message_id = request.args.get("messageId")
-        deleted_amount = data_store.delete_message_by_message_id(message_id)
-
-    else:
+    if deleted_amount is None:
         abort(400, "Specify one of the following: applicationId, sessionId, messageId")
 
     if deleted_amount == 0:
