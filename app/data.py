@@ -121,6 +121,7 @@ class DiskDataStore(DataStore):
             INSERT INTO messages 
             VALUES (?, ?, ?, ?, ?);
         """
+
         with self.con as con:
             con.execute(insert_query, (
                 message.application_id,
@@ -135,42 +136,29 @@ class DiskDataStore(DataStore):
             SELECT * FROM messages
             WHERE application_id = ?;
         """
-        result = []
 
-        cur = self.con.cursor()
-        cur.execute(select_query, (application_id,))
-        for row in cur:
-            row = dict(row)
-            row["participants"] = json.loads(row["participants"])
-            result.append(Message(**row))
-
-        return result
+        return self.get_messages(select_query, application_id)
 
     def get_messages_by_session_id(self, session_id: str) -> List[Message]:
         select_query = """
             SELECT * FROM messages
             WHERE session_id = ?;
         """
-        result = []
 
-        cur = self.con.cursor()
-        cur.execute(select_query, (session_id,))
-        for row in cur:
-            row = dict(row)
-            row["participants"] = json.loads(row["participants"])
-            result.append(Message(**row))
-
-        return result
+        return self.get_messages(select_query, session_id)
 
     def get_message_by_message_id(self, message_id: str) -> List[Message]:
         select_query = """
             SELECT * FROM messages
             WHERE message_id = ?;
         """
-        result = []
 
+        return self.get_messages(select_query, message_id)
+
+    def get_messages(self, query: str, param) -> List[Message]:
+        result = []
         cur = self.con.cursor()
-        cur.execute(select_query, (message_id,))
+        cur.execute(query, (param,))
         for row in cur:
             row = dict(row)
             row["participants"] = json.loads(row["participants"])
@@ -184,11 +172,7 @@ class DiskDataStore(DataStore):
             WHERE application_id = ?;
         """
 
-        with self.con as con:
-            cur = con.cursor()
-            cur.execute(delete_query, (application_id,))
-
-        return cur.rowcount
+        return self.delete_messages(delete_query, application_id)
 
     def delete_messages_by_session_id(self, session_id: str) -> int:
         delete_query = """
@@ -196,11 +180,7 @@ class DiskDataStore(DataStore):
             WHERE session_id = ?;
         """
 
-        with self.con as con:
-            cur = con.cursor()
-            cur.execute(delete_query, (session_id,))
-
-        return cur.rowcount
+        return self.delete_messages(delete_query, session_id)
 
     def delete_message_by_message_id(self, message_id: str) -> int:
         delete_query = """
@@ -208,8 +188,11 @@ class DiskDataStore(DataStore):
             WHERE message_id = ?;
         """
 
+        return self.delete_messages(delete_query, message_id)
+
+    def delete_messages(self, query: str, param):
         with self.con as con:
             cur = con.cursor()
-            cur.execute(delete_query, (message_id,))
+            cur.execute(query, (param,))
 
         return cur.rowcount
