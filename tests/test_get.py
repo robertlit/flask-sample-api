@@ -65,17 +65,17 @@ def message_id(message_object):
 
 def test_get_message_by_application_id(client, path, application_id, message):
     response = client.get(path, query_string={"applicationId": application_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json.get("messages")[0] == message
 
 
 def test_get_message_session_id(client, path, session_id, message):
     response = client.get(path, query_string={"sessionId": session_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json.get("messages")[0] == message
 
 
 def test_get_message_message_id(client, path, message_id, message):
     response = client.get(path, query_string={"messageId": message_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json.get("messages")[0] == message

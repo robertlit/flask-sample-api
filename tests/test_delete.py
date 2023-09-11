@@ -62,17 +62,17 @@ def message_id(message):
 
 def test_delete_message_by_application_id(client, path, application_id):
     response = client.delete(path, query_string={"applicationId": application_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json["deleted_amount"] == 1
 
 
 def test_delete_message_by_session_id(client, path, session_id):
     response = client.delete(path, query_string={"sessionId": session_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json["deleted_amount"] == 1
 
 
 def test_delete_message_by_message_id(client, path, message_id):
     response = client.delete(path, query_string={"messageId": message_id})
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Description: {response.json.get('description')}"
     assert response.json["deleted_amount"] == 1
