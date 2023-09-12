@@ -1,12 +1,12 @@
 import json
-from typing import Callable, Dict, Tuple, Any, List
+from typing import Callable, Dict, Any, List
 
 from flask import Flask, request, abort
 from werkzeug.exceptions import HTTPException
 
 from app.data import DataStore
 from app.message import Message
-from app.parsing import parse_int_arg, identity
+from app.parsing import parse_int_arg, identity_arg
 from app.validation import validate_message_data
 
 
@@ -15,8 +15,8 @@ def create_app(data_store: DataStore) -> Flask:
 
     arg_transformations: Dict[str, Callable[[str, str], Any]] = {
         "applicationId": parse_int_arg,
-        "sessionId": identity,
-        "messageId": identity
+        "sessionId": identity_arg,
+        "messageId": identity_arg
     }
 
     get_functions: Dict[str, Callable[[Any], List[Message]]] = {

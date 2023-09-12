@@ -1,6 +1,3 @@
-from typing import Optional, Tuple
-
-
 def parse_int_arg(arg_val: str, arg_name: str):
     try:
         return int(arg_val), None
@@ -8,5 +5,5 @@ def parse_int_arg(arg_val: str, arg_name: str):
         return None, f"{arg_name} must be an integer"
 
 
-def identity(x, arg_name):
+def identity_arg(x, arg_name):
     return x, None
