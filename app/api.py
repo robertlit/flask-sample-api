@@ -6,17 +6,17 @@ from werkzeug.exceptions import HTTPException
 
 from app.data import DataStore
 from app.message import Message
-from app.parsing import parse_int, identity
+from app.parsing import parse_int_arg, identity
 from app.validation import validate_message_data
 
 
 def create_app(data_store: DataStore) -> Flask:
     app = Flask(__name__)
 
-    arg_transformations: Dict[str, Tuple[Callable[[str], Any], str]] = {
-        "applicationId": (parse_int, "applicationId must be an integer"),
-        "sessionId": (identity, None),
-        "messageId": (identity, None)
+    arg_transformations: Dict[str, Callable[[str, str], Any]] = {
+        "applicationId": parse_int_arg,
+        "sessionId": identity,
+        "messageId": identity
     }
 
     get_functions: Dict[str, Callable[[Any], List[Message]]] = {
@@ -53,12 +53,20 @@ def create_app(data_store: DataStore) -> Flask:
     @app.get("/GetMessage")
     def get_message():
         if len(request.args.keys()) != 1:
-            abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
+            abort(400, f"Specify exactly one of the following: {', '.join(get_functions.keys())}")
 
-        messages = call_func_by_arg(request.args, get_functions)
+        arg_name = next(iter(request.args.keys()))
 
-        if messages is None:
-            abort(400, "Specify one of the following: applicationId, sessionId, messageId")
+        if arg_name not in get_functions:
+            abort(400, f"Specify one of the following: {', '.join(get_functions.keys())}")
+
+        arg_val = request.args[arg_name]
+        arg_val, error_message = arg_transformations[arg_name](arg_val, arg_name)
+
+        if arg_val is None:
+            abort(400, error_message)
+
+        messages = get_functions[arg_name](arg_val)
 
         if len(messages) == 0:
             abort(404, "No messages found")
@@ -70,12 +78,20 @@ def create_app(data_store: DataStore) -> Flask:
     @app.delete("/DeleteMessage")
     def delete_message():
         if len(request.args.keys()) != 1:
-            abort(400, "Specify exactly one of the following: applicationId, sessionId, messageId")
+            abort(400, f"Specify exactly one of the following: {', '.join(delete_functions.keys())}")
 
-        deleted_amount = call_func_by_arg(request.args, delete_functions)
+        arg_name = next(iter(request.args.keys()))
 
-        if deleted_amount is None:
-            abort(400, "Specify one of the following: applicationId, sessionId, messageId")
+        if arg_name not in delete_functions:
+            abort(400, f"Specify one of the following: {', '.join(delete_functions.keys())}")
+
+        arg_val = request.args[arg_name]
+        arg_val, error_message = arg_transformations[arg_name](arg_val, arg_name)
+
+        if arg_val is None:
+            abort(400, error_message)
+
+        deleted_amount = delete_functions[arg_name](arg_val)
 
         if deleted_amount == 0:
             abort(404, "No messages found")
@@ -83,20 +99,6 @@ def create_app(data_store: DataStore) -> Flask:
         return {
             "deleted_amount": deleted_amount
         }
-
-    def call_func_by_arg(args, funcs):
-        for arg_name, func in funcs.items():
-            if arg_name in args:
-                arg_val = args.get(arg_name)
-                transformation, error_message = arg_transformations[arg_name]
-                transformed_arg = transformation(arg_val)
-
-                if transformed_arg is None:
-                    abort(400, error_message)
-
-                return func(transformed_arg)
-
-        return None
 
     @app.errorhandler(HTTPException)
     def handle_exception(e: HTTPException):

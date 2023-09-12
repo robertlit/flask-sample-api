@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 
-def parse_int(s: str) -> Optional[int]:
+def parse_int_arg(arg_val: str, arg_name: str):
     try:
-        return int(s)
+        return int(arg_val), None
     except ValueError:
-        return None
+        return None, f"{arg_name} must be an integer"
 
 
-def identity(x):
-    return x
+def identity(x, arg_name):
+    return x, None
