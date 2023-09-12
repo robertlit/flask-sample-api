@@ -15,6 +15,7 @@ def test_add_no_json_body(client, path):
 
 @pytest.mark.parametrize("message, desc", [
     ({}, "Empty JSON object"),
+    ([], "Not a JSON object"),
     ({
          "session_id": "aaa",
          "message_id": "bbb",

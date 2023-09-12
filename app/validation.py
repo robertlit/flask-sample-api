@@ -7,6 +7,9 @@ required_fields = [(field.name, field.type) for field in fields(Message)]
 
 
 def validate_message_data(data) -> Tuple[bool, Optional[str]]:
+    if not isinstance(data, dict):
+        return False, "Request body must be JSON object"
+
     for field_name, field_type in required_fields:
         if field_name not in data:
             return False, f"Missing {field_name}"
